@@ -381,6 +381,7 @@ TEST_F(VecBitmapFunctionsTest, bitmapAndTest) {
     BitmapValue b2;
     BitmapValue b3;
     BitmapValue b4;
+    BitmapValue b5;
 
     b1.add(1);
     b1.add(2);
@@ -401,6 +402,8 @@ TEST_F(VecBitmapFunctionsTest, bitmapAndTest) {
     b4.add(5);
     b4.add(6);
     b4.add(7);
+
+    b5.add(7);
 
     {
         Columns columns;
@@ -424,6 +427,34 @@ TEST_F(VecBitmapFunctionsTest, bitmapAndTest) {
 
         ASSERT_EQ(4, p->get_object(0)->cardinality());
         ASSERT_EQ(1, p->get_object(1)->cardinality());
+    }
+
+    {
+        Columns columns;
+
+        auto s1 = BitmapColumn::create();
+        auto s2 = BitmapColumn::create();
+        auto s3 = BitmapColumn::create();
+
+        s1->append(&b1);
+        s1->append(&b2);
+        s2->append(&b3);
+        s2->append(&b4);
+        s3->append(&b3);
+        s3->append(&b5);
+
+        columns.push_back(s1);
+        columns.push_back(s2);
+        columns.push_back(s3);
+
+        auto column = BitmapFunctions::bitmap_and(ctx, columns).value();
+
+        ASSERT_TRUE(column->is_object());
+
+        auto p = ColumnHelper::cast_to<TYPE_OBJECT>(column);
+
+        ASSERT_EQ(4, p->get_object(0)->cardinality());
+        ASSERT_EQ(0, p->get_object(1)->cardinality());
     }
 }
 
