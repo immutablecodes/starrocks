@@ -1642,14 +1642,14 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
                 properties.put(property.getKey(), property.getValue());
             }
         }
-        return new CreateCatalogStmt(catalogName, comment, properties, createPos(context));
+        return new CreateCatalogStmt(context.IF() != null, catalogName, comment, properties, createPos(context));
     }
 
     @Override
     public ParseNode visitDropExternalCatalogStatement(StarRocksParser.DropExternalCatalogStatementContext context) {
         Identifier identifier = (Identifier) visit(context.catalogName);
         String catalogName = identifier.getValue();
-        return new DropCatalogStmt(catalogName, createPos(context));
+        return new DropCatalogStmt(context.IF() != null, catalogName, createPos(context));
     }
 
     @Override

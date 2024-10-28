@@ -22,17 +22,21 @@ import java.util.Map;
 public class CreateCatalogStmt extends DdlStmt {
     public static final String TYPE = "type";
 
+    private final boolean ifNotExists;
     private final String catalogName;
     private final String comment;
     private final Map<String, String> properties;
     private String catalogType;
 
-    public CreateCatalogStmt(String catalogName, String comment, Map<String, String> properties) {
-        this(catalogName, comment, properties, NodePosition.ZERO);
-    }
-
-    public CreateCatalogStmt(String catalogName, String comment, Map<String, String> properties, NodePosition pos) {
+    public CreateCatalogStmt(
+            boolean ifNotExists,
+            String catalogName,
+            String comment,
+            Map<String, String> properties,
+            NodePosition pos
+    ) {
         super(pos);
+        this.ifNotExists = ifNotExists;
         this.catalogName = catalogName;
         this.comment = comment;
         this.properties = properties;
@@ -58,6 +62,10 @@ public class CreateCatalogStmt extends DdlStmt {
         this.catalogType = catalogType;
     }
 
+    public boolean isIfNotExists() {
+        return ifNotExists;
+    }
+
     @Override
     public <R, C> R accept(AstVisitor<R, C> visitor, C context) {
         return visitor.visitCreateCatalogStatement(this, context);
@@ -66,7 +74,10 @@ public class CreateCatalogStmt extends DdlStmt {
     @Override
     public String toSql() {
         StringBuilder sb = new StringBuilder();
-        sb.append("CREATE EXTERNAL CATALOG '");
+        sb.append("CREATE EXTERNAL CATALOG ");
+        if (ifNotExists) {
+            sb.append("IF NOT EXISTS '");
+        }
         sb.append(catalogName).append("' ");
         if (comment != null) {
             sb.append("COMMENT \"").append(comment).append("\" ");

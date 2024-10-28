@@ -95,18 +95,42 @@ public class CatalogMgr {
     }
 
     public void createCatalog(CreateCatalogStmt stmt) throws DdlException {
-        createCatalog(stmt.getCatalogType(), stmt.getCatalogName(), stmt.getComment(), stmt.getProperties());
+        createCatalog(
+                stmt.isIfNotExists(),
+                stmt.getCatalogType(),
+                stmt.getCatalogName(),
+                stmt.getComment(),
+                stmt.getProperties()
+        );
     }
 
     public void createCatalog(String type, String catalogName, String comment, Map<String, String> properties)
             throws DdlException {
+        createCatalog(false, type, catalogName, comment, properties);
+    }
+
+    public void createCatalog(
+            boolean ifNotExists,
+            String type,
+            String catalogName,
+            String comment,
+            Map<String, String> properties
+    ) throws DdlException {
         if (Strings.isNullOrEmpty(type)) {
             throw new DdlException("Missing properties 'type'");
         }
 
         readLock();
         try {
-            Preconditions.checkState(!catalogs.containsKey(catalogName), "Catalog '%s' already exists", catalogName);
+            boolean exists = catalogs.containsKey(catalogName);
+            if (exists) {
+                if (ifNotExists) {
+                    LOG.info("Ignoring exist catalog '{}'.", catalogName);
+                    return;
+                } else {
+                    throw new IllegalStateException("Catalog '" + catalogName + "' already exists");
+                }
+            }
         } finally {
             readUnlock();
         }
@@ -148,7 +172,15 @@ public class CatalogMgr {
         String catalogName = stmt.getName();
         readLock();
         try {
-            Preconditions.checkState(catalogs.containsKey(catalogName), "Catalog '%s' doesn't exist", catalogName);
+            boolean exists = catalogs.containsKey(catalogName);
+            if (!exists) {
+                if (stmt.isIfExists()) {
+                    LOG.info("Ignoring not exists catalog: '{}'.", catalogName);
+                    return;
+                } else {
+                    throw new IllegalStateException("Catalog '" + catalogName + "' doesn't exist");
+                }
+            }
         } finally {
             readUnlock();
         }

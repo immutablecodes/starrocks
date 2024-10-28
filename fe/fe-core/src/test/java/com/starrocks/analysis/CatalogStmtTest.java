@@ -60,6 +60,12 @@ public class CatalogStmtTest {
         String sql_6 = "CREATE EXTERNAL CATALOG catalog_5 properties(\"type\"=\"hive\")";
         StatementBase stmt2 = AnalyzeTestUtil.analyzeSuccess(sql_6);
         Assert.assertEquals("CREATE EXTERNAL CATALOG 'catalog_5' PROPERTIES(\"type\"  =  \"hive\")", stmt2.toSql());
+        String sql_7 = "CREATE CATALOG catalog_7 PROPERTIES(\"type\"=\"hive\", \"hive.metastore.uris\"=\"thrift://127.0.0.1:9083\")";
+        stmt = AnalyzeTestUtil.analyzeSuccess(sql_7);
+        Assert.assertTrue(stmt instanceof CreateCatalogStmt);
+        String sql_8 = "CREATE CATALOG IF NOT EXISTS catalog_8 PROPERTIES(\"type\"=\"hive\", \"hive.metastore.uris\"=\"thrift://127.0.0.1:9083\")";
+        stmt = AnalyzeTestUtil.analyzeSuccess(sql_8);
+        Assert.assertTrue(stmt instanceof CreateCatalogStmt);
     }
 
     @Test
@@ -86,6 +92,9 @@ public class CatalogStmtTest {
         String sql_4 = "DROP CATALOG 'catalog_1'";
         StatementBase stmt2 = AnalyzeTestUtil.analyzeSuccess(sql_4);
         Assert.assertTrue(stmt2 instanceof DropCatalogStmt);
+        String sql_5 = "DROP CATALOG IF EXISTS catalog_5";
+        stmt = AnalyzeTestUtil.analyzeSuccess(sql_5);
+        Assert.assertTrue(stmt instanceof DropCatalogStmt);
     }
 
     @Test

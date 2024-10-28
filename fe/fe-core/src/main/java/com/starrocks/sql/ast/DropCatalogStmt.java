@@ -20,19 +20,26 @@ import com.starrocks.sql.parser.NodePosition;
 // ToDo(zhuodong): to support internal catalog in the future
 public class DropCatalogStmt extends DdlStmt {
 
+    private final boolean ifExists;
+
     private final String name;
 
     public DropCatalogStmt(String name) {
-        this(name, NodePosition.ZERO);
+        this(false, name, NodePosition.ZERO);
     }
 
-    public DropCatalogStmt(String name, NodePosition pos) {
+    public DropCatalogStmt(boolean ifExists, String name, NodePosition pos) {
         super(pos);
+        this.ifExists = ifExists;
         this.name = name;
     }
 
     public String getName() {
         return name;
+    }
+
+    public boolean isIfExists() {
+        return ifExists;
     }
 
     @Override
