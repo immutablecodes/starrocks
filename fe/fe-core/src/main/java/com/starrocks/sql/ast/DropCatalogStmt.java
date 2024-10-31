@@ -51,6 +51,9 @@ public class DropCatalogStmt extends DdlStmt {
     public String toSql() {
         StringBuilder sb = new StringBuilder();
         sb.append("DROP CATALOG ");
+        if (ifExists) {
+            sb.append("IF EXISTS ");
+        }
         sb.append("\'" + name + "\'");
         return sb.toString();
     }
