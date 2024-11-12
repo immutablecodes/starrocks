@@ -37,6 +37,9 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -68,13 +71,6 @@ public class JDBCMetadata implements ConnectorMetadata {
     public JDBCMetadata(Map<String, String> properties, String catalogName, HikariDataSource dataSource) {
         this.properties = properties;
         this.catalogName = catalogName;
-        try {
-            String driverName = getDriverName();
-            Class.forName(driverName);
-        } catch (ClassNotFoundException e) {
-            LOG.warn(e.getMessage(), e);
-            throw new StarRocksConnectorException("doesn't find class: " + e.getMessage());
-        }
         if (properties.get(JDBCResource.DRIVER_CLASS).toLowerCase().contains("mysql")) {
             schemaResolver = new MysqlSchemaResolver();
         } else if (properties.get(JDBCResource.DRIVER_CLASS).toLowerCase().contains("postgresql")) {
@@ -134,15 +130,29 @@ public class JDBCMetadata implements ConnectorMetadata {
     }
 
     private HikariDataSource createHikariDataSource() {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(getJdbcUrl());
-        config.setUsername(properties.get(JDBCResource.USER));
-        config.setPassword(properties.get(JDBCResource.PASSWORD));
-        config.setDriverClassName(getDriverName());
-        config.setMaximumPoolSize(Config.jdbc_connection_pool_size);
-        config.setMinimumIdle(Config.jdbc_minimum_idle_connections);
-        config.setIdleTimeout(Config.jdbc_connection_idle_timeout_ms);
-        return new HikariDataSource(config);
+        URL driverURL;
+        try {
+            driverURL = new URL(properties.get(JDBCResource.DRIVER_URL));
+        } catch (MalformedURLException e) {
+            throw new StarRocksConnectorException(e);
+        }
+        // TODO: use com.starrocks.utils.loader.ThreadContextClassLoader instead
+        ClassLoader originLoader = Thread.currentThread().getContextClassLoader();
+        ClassLoader newLoader = URLClassLoader.newInstance(new URL[] {driverURL});
+        Thread.currentThread().setContextClassLoader(newLoader);
+        try {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(getJdbcUrl());
+            config.setUsername(properties.get(JDBCResource.USER));
+            config.setPassword(properties.get(JDBCResource.PASSWORD));
+            config.setDriverClassName(getDriverName());
+            config.setMaximumPoolSize(Config.jdbc_connection_pool_size);
+            config.setMinimumIdle(Config.jdbc_minimum_idle_connections);
+            config.setIdleTimeout(Config.jdbc_connection_idle_timeout_ms);
+            return new HikariDataSource(config);
+        } finally {
+            Thread.currentThread().setContextClassLoader(originLoader);
+        }
     }
 
     public Connection getConnection() throws SQLException {

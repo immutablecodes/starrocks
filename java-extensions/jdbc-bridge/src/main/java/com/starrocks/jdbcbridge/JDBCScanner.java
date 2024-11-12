@@ -14,6 +14,7 @@
 
 package com.starrocks.jdbcbridge;
 
+import com.starrocks.utils.loader.ThreadContextClassLoader;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -64,21 +65,22 @@ public class JDBCScanner {
         URL driverURL = new File(driverLocation).toURI().toURL();
         DataSourceCache.DataSourceCacheItem cacheItem = DataSourceCache.getInstance().getSource(cacheKey, () -> {
             ClassLoader classLoader = URLClassLoader.newInstance(new URL[] {driverURL});
-            Thread.currentThread().setContextClassLoader(classLoader);
-            HikariConfig config = new HikariConfig();
-            config.setDriverClassName(scanContext.getDriverClassName());
-            config.setJdbcUrl(scanContext.getJdbcURL());
-            config.setUsername(scanContext.getUser());
-            config.setPassword(scanContext.getPassword());
-            config.setMaximumPoolSize(scanContext.getConnectionPoolSize());
-            config.setMinimumIdle(scanContext.getMinimumIdleConnections());
-            config.setIdleTimeout(scanContext.getConnectionIdleTimeoutMs());
-            config.setConnectionTimeout(scanContext.getConnectionTimeoutMs());
-            HikariDataSource hikariDataSource = new HikariDataSource(config);
-            // hikari doesn't support user-provided class loader, we should save them ourselves to ensure that
-            // the classes of result data are loaded by the same class loader, otherwise we may encounter
-            // ArrayStoreException in getNextChunk
-            return new DataSourceCache.DataSourceCacheItem(hikariDataSource, classLoader);
+            try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
+                HikariConfig config = new HikariConfig();
+                config.setDriverClassName(scanContext.getDriverClassName());
+                config.setJdbcUrl(scanContext.getJdbcURL());
+                config.setUsername(scanContext.getUser());
+                config.setPassword(scanContext.getPassword());
+                config.setMaximumPoolSize(scanContext.getConnectionPoolSize());
+                config.setMinimumIdle(scanContext.getMinimumIdleConnections());
+                config.setIdleTimeout(scanContext.getConnectionIdleTimeoutMs());
+                config.setConnectionTimeout(scanContext.getConnectionTimeoutMs());
+                HikariDataSource hikariDataSource = new HikariDataSource(config);
+                // hikari doesn't support user-provided class loader, we should save them ourselves to ensure that
+                // the classes of result data are loaded by the same class loader, otherwise we may encounter
+                // ArrayStoreException in getNextChunk
+                return new DataSourceCache.DataSourceCacheItem(hikariDataSource, classLoader);
+            }
         });
         dataSource = cacheItem.getHikariDataSource();
         classLoader = cacheItem.getClassLoader();
