@@ -31,6 +31,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -50,6 +51,7 @@ public class UDFHelper {
     public static final int TYPE_ARRAY = 19;
     public static final int TYPE_BOOLEAN = 24;
     public static final int TYPE_TIME = 44;
+    public static final int TYPE_DATE = 50;
     public static final int TYPE_DATETIME = 51;
 
     private static final byte[] emptyBytes = new byte[0];
@@ -122,6 +124,25 @@ public class UDFHelper {
                 nulls[i] = 1;
             } else {
                 dataArr[i] = boxedArr[i];
+            }
+        }
+
+        final long[] addrs = getAddrs(columnAddr);
+        // memcpy to uint8_t array
+        Platform.copyMemory(nulls, Platform.BYTE_ARRAY_OFFSET, null, addrs[0], numRows);
+        // memcpy to int array
+        Platform.copyMemory(dataArr, Platform.INT_ARRAY_OFFSET, null, addrs[1], numRows * 4L);
+    }
+
+    // getDateBoxedResult
+    private static void getDateResult(int numRows, LocalDate[] boxedArr, long columnAddr) {
+        byte[] nulls = new byte[numRows];
+        int[] dataArr = new int[numRows];
+        for (int i = 0; i < numRows; i++) {
+            if (boxedArr[i] == null) {
+                nulls[i] = 1;
+            } else {
+                dataArr[i] = (int) boxedArr[i].toEpochDay();
             }
         }
 
@@ -320,6 +341,9 @@ public class UDFHelper {
                 getBigIntBoxedResult(numRows, (Long[]) boxedResult, columnAddr);
                 break;
             }
+            case TYPE_DATE:
+                getDateResult(numRows, (LocalDate[]) boxedResult, columnAddr);
+                break;
             case TYPE_TIME: {
                 getDoubleTimeResult(numRows, (Time[]) boxedResult, columnAddr);
                 break;
@@ -405,6 +429,13 @@ public class UDFHelper {
                     return createBoxedStringArray(numRows, null, buffer[0], buffer[1]);
                 } else {
                     return createBoxedStringArray(numRows, buffer[0], buffer[1], buffer[2]);
+                }
+            }
+            case TYPE_DATE: {
+                if (!nullable) {
+                    return createBoxedDateArray(numRows, null, buffer[0]);
+                } else {
+                    return createBoxedDateArray(numRows, buffer[0], buffer[1]);
                 }
             }
             default:
@@ -588,6 +619,28 @@ public class UDFHelper {
         }
 
         return strings;
+    }
+
+    public static Object[] createBoxedDateArray(int numRows, ByteBuffer nullBuffer, ByteBuffer dataBuffer) {
+        int[] dataArr = new int[numRows];
+        dataBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(dataArr);
+        dataBuffer.asIntBuffer().get(dataArr);
+        if (nullBuffer != null) {
+            byte[] nullArr = getNullData(nullBuffer, numRows);
+            LocalDate[] result = new LocalDate[numRows];
+            for (int i = 0; i < numRows; ++i) {
+                if (nullArr[i] == 0) {
+                    result[i] = LocalDate.ofEpochDay(dataArr[i]);
+                }
+            }
+            return result;
+        } else {
+            LocalDate[] result = new LocalDate[numRows];
+            for (int i = 0; i < numRows; ++i) {
+                result[i] = LocalDate.ofEpochDay(dataArr[i]);
+            }
+            return result;
+        }
     }
 
     // batch call void(Object...)

@@ -26,6 +26,7 @@
 #include "fmt/core.h"
 #include "jni.h"
 #include "types/logical_type.h"
+#include "types/date_value.h"
 #include "udf/java/java_native_method.h"
 #include "udf/java/utils.h"
 #include "util/defer_op.h"
@@ -92,12 +93,14 @@ void JVMFunctionHelper::_init() {
     _object_class = JNI_FIND_CLASS("java/lang/Object");
     _object_array_class = JNI_FIND_CLASS("[Ljava/lang/Object;");
     _string_class = JNI_FIND_CLASS("java/lang/String");
+    _date_class = JNI_FIND_CLASS("java/time/LocalDate");
     _throwable_class = JNI_FIND_CLASS("java/lang/Throwable");
     _jarrays_class = JNI_FIND_CLASS("java/util/Arrays");
     _list_class = JNI_FIND_CLASS("java/util/List");
 
     CHECK(_object_class);
     CHECK(_string_class);
+    CHECK(_date_class);
     CHECK(_throwable_class);
     CHECK(_jarrays_class);
     CHECK(_list_class);
@@ -122,6 +125,9 @@ void JVMFunctionHelper::_init() {
     DCHECK(_utf8_charsets != nullptr);
     _string_construct_with_bytes = _env->GetMethodID(_string_class, "<init>", "([BLjava/nio/charset/Charset;)V");
     DCHECK(_string_construct_with_bytes != nullptr);
+
+    _date_constructor = _env->GetStaticMethodID(_date_class, "of", "(III)Ljava/time/LocalDate;");
+    DCHECK(_date_constructor != nullptr);
 
     std::string name = JVMFunctionHelper::to_jni_class_name(CLASS_UDF_HELPER_NAME);
     _udf_helper_class = JNI_FIND_CLASS(name.c_str());
@@ -791,6 +797,8 @@ Status ClassAnalyzer::get_udaf_method_desc(const std::string& sign, std::vector<
                 // clang-format on
             } else if (type == "java/lang/String") {
                 desc->emplace_back(MethodTypeDescriptor{TYPE_VARCHAR, true});
+            } else if (type == "java/time/LocalDate") {
+                desc->emplace_back(MethodTypeDescriptor{TYPE_DATE, true});
             } else {
                 desc->emplace_back(MethodTypeDescriptor{TYPE_UNKNOWN, true});
             }

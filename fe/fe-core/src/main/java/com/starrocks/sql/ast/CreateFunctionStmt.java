@@ -48,6 +48,7 @@ import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -101,6 +102,7 @@ public class CreateFunctionStmt extends DdlStmt {
                     .put(PrimitiveType.BIGINT, Long.class)
                     .put(PrimitiveType.CHAR, String.class)
                     .put(PrimitiveType.VARCHAR, String.class)
+                    .put(PrimitiveType.DATE, LocalDate.class)
                     .build();
 
     private static class UDFInternalClass {

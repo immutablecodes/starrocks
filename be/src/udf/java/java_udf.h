@@ -160,11 +160,14 @@ private:
     jclass _object_class;
     jclass _object_array_class;
     jclass _string_class;
+    jclass _date_class;
     jclass _throwable_class;
     jclass _jarrays_class;
     jclass _list_class;
 
     jmethodID _string_construct_with_bytes;
+
+    jmethodID _date_constructor;
 
     // List method
     jmethodID _list_get;
